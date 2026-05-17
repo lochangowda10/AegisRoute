@@ -143,6 +143,16 @@ with st.sidebar:
                 else:
                     if st.button(f"Heal", key=f"r{p}", use_container_width=True): api_post(f"/api/v1/agents/{p}/restore")
 
+    st.markdown("---")
+    st.markdown("#### 🎬 Demo Engine")
+    demo_sidebar_stats = fetch_stats()
+    if demo_sidebar_stats:
+        if demo_sidebar_stats.get("demo_active", False):
+            st.warning("🔴 Demo is currently LIVE")
+            if st.button("⏹️ Stop Demo", use_container_width=True): api_post("/api/v1/demo/stop")
+        else:
+            if st.button("🚀 Start Demo", use_container_width=True, type="primary"): api_post("/api/v1/demo/start")
+
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN CONTENT — TAB LAYOUT
 # ═══════════════════════════════════════════════════════════════════════════
@@ -342,10 +352,10 @@ while True:
             with dc2:
                 if demo_active:
                     st.warning("🔴 Demo is LIVE — watch the Command Center and Analytics tabs!")
-                    if st.button("⏹️ Stop Demo", use_container_width=True): api_post("/api/v1/demo/stop"); st.rerun()
+                    st.info("To stop the demo, use the 🎬 Demo Engine controls in the left sidebar.")
                 else:
                     st.success("Ready to launch demo.")
-                    if st.button("🚀 Start Demo", use_container_width=True, type="primary"): api_post("/api/v1/demo/start"); st.rerun()
+                    st.info("Click **🚀 Start Demo** in the left sidebar to begin.")
 
             st.markdown("---")
             st.markdown("#### 📋 Demo Sequence")
