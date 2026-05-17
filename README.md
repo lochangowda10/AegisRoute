@@ -1,54 +1,54 @@
 # AegisRoute 🛡️
-**Real-time Agent Load Balancing & Resiliency Engine**
+### AI-Native Agent Orchestration & Intelligent Routing Infrastructure
 
-AegisRoute is a prototype distributed systems infrastructure designed to efficiently load balance traffic across multiple AI agent nodes, actively monitor their health, and automatically quarantine and recover nodes upon failure.
+AegisRoute is a production-grade, self-healing API gateway and orchestration engine purpose-built for scalable multi-agent AI systems. It delivers intelligent traffic distribution, autonomous failover, and enterprise-grade observability — all in real-time.
 
-## 🚀 Features
-- **3 Hot-Swappable Load Balancing Strategies**: Round-Robin, Least-Connections, Random.
-- **Active Health Checking**: Background async daemon probing nodes every 3s.
-- **Self-Healing Architecture**: Automatic failover (quarantine) on 2 consecutive failures, and auto-recovery on 2 successes.
-- **NOC Terminal Dashboard**: Beautiful, glowing dark-themed Streamlit UI for real-time telemetry.
-- **Concurrency Blaster**: Stress test script to validate traffic distribution.
+## 🌟 Core Capabilities
+- **6 Intelligent Routing Strategies**: Round-Robin, Least-Connections, Random, Latency-Aware, Weighted, Adaptive
+- **Autonomous Failover & Self-Healing**: Nodes are automatically quarantined on failure and re-injected upon recovery
+- **NOC Terminal Dashboard**: Datadog-inspired dark-themed UI with glassmorphism cards, live charts, request tracing, and event logs
+- **One-Click Demo Mode**: Automated traffic generation + chaos engineering to showcase the full resilience lifecycle
+- **Request Tracing**: Every request gets a trace ID with full latency breakdown and routing explanation
 
-## 🛠️ Setup Instructions
+## 🏗️ Architecture
+```
+Client → AegisRoute Gateway (Port 8000)
+             ├── Round-Robin / Least-Connections / Random
+             ├── Latency-Aware / Weighted / Adaptive
+             ├── Health Checker Daemon (3s interval)
+             ├── Metrics Collector (CPU, Memory, Latency)
+             ├── Request Tracer (Trace ID, timing breakdown)
+             └── Demo Engine (automated chaos + traffic)
+                    ↓
+         Agent Pool: [8001] [8002] [8003]
+```
 
-1. **Install Requirements:**
-   Make sure you are running Python 3.12.
-   ```bash
-   pip install -r requirements.txt
-   ```
+## 🚀 Quick Start
 
-2. **Launch Mock Agent Instances:**
-   Open 3 separate terminal windows and start the agents:
-   ```bash
-   python agent_instance.py --port 8001
-   python agent_instance.py --port 8002
-   python agent_instance.py --port 8003
-   ```
+```bash
+pip install -r requirements.txt
 
-3. **Launch the AegisRoute Router:**
-   Open a 4th terminal window to run the core engine on port 8000:
-   ```bash
-   python router.py
-   ```
+# Terminal 1-3: Start agent nodes
+python agent_instance.py --port 8001
+python agent_instance.py --port 8002
+python agent_instance.py --port 8003
 
-4. **Launch the NOC Terminal Dashboard:**
-   Open a 5th terminal window to run the visualizer:
-   ```bash
-   streamlit run dashboard.py
-   ```
-   *The dashboard will be available at http://localhost:8501*
+# Terminal 4: Start router
+python router.py
 
-5. **Run the Stress Test:**
-   Open a 6th terminal window and fire concurrent requests:
-   ```bash
-   python stress_test.py --strategy round-robin --requests 50
-   ```
-   You can also test other strategies:
-   ```bash
-   python stress_test.py --strategy least-connections --requests 40
-   ```
+# Terminal 5: Start dashboard
+streamlit run dashboard.py
 
-## 🧪 Chaos Engineering
-Use the left sidebar in the Streamlit Dashboard to click **"KILL Node"** on a healthy node.
-Watch the dashboard update as the node is moved to the "Dead Nodes" pool and observe how the traffic is seamlessly re-routed to the remaining healthy instances during the stress test. Click **"RESTORE Node"** to watch the self-healing daemon inject it back into rotation.
+# Terminal 6: Run stress test
+python stress_test.py --strategy adaptive --requests 50
+python stress_test.py --burst
+python stress_test.py --chaos
+```
+
+## ☁️ Cloud Deployment
+- **Backend**: Deploy via Render.com with `python cloud_runner.py` as the start command
+- **Dashboard**: Deploy via Streamlit Cloud, set `ROUTER_URL` to your Render URL in secrets
+
+## 🧪 Demo Mode
+Click the **🎬 Demo Mode** tab in the dashboard and press **Start Demo**.
+It automatically generates traffic → crashes a node → reroutes traffic → restores the node → proves zero-downtime recovery.

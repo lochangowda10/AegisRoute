@@ -1,73 +1,119 @@
-# AegisRoute: Resilient Agent Load Balancing Engine 🛡️
+# AegisRoute — AI-Native Agent Orchestration Infrastructure 🛡️
 
-**AegisRoute** is an ultra-fast, auto-healing API Gateway and Load Balancer designed specifically for AI agent fleets. 
-It ensures high availability and intelligent traffic distribution across multiple LLM reasoning containers.
+> **A production-grade, self-healing API gateway and intelligent routing engine for scalable multi-agent AI systems.**
+
+AegisRoute is not a simple load balancer. It is an **AI-native orchestration platform** that provides intelligent traffic distribution, autonomous failover, predictive routing, and enterprise-grade observability — all operating in real-time with zero-downtime guarantees.
+
+---
 
 ## 🌟 Value Proposition
-- **Zero-Downtime Failover**: Seamlessly quarantines failing agent nodes and auto-recovers them upon stabilization.
-- **Hot-Swappable Load Balancing**: Dynamically shift between Round-Robin, Least-Connections, and Random strategies via query parameters.
-- **NOC Terminal Observability**: Live, glowing dark-themed dashboard to monitor cluster health and traffic flattening in real-time.
-- **Asynchronous & Lightweight**: Built on Python 3.12 `asyncio` and FastAPI, resulting in minimal overhead.
+
+| Capability | What It Does |
+|---|---|
+| **Intelligent Routing** | 6 hot-swappable strategies including latency-aware and adaptive routing |
+| **Self-Healing Architecture** | Automatic quarantine on failure, automatic re-injection on recovery |
+| **Full Observability** | Real-time metrics, request tracing, event logging, traffic analytics |
+| **Chaos Engineering** | Built-in fault injection to prove resilience under pressure |
+| **Demo Engine** | One-click automated demonstration of the entire resilience lifecycle |
+
+---
 
 ## 🏗️ System Architecture
 
-```mermaid
-graph TD
-    Client[Client Requests] -->|POST /router/route| Router[AegisRoute Gateway]
-    
-    subgraph Engine [Load Balancing Engine]
-        Router --> RR[Round-Robin]
-        Router --> LC[Least-Connections]
-        Router --> RND[Random]
-    end
-    
-    subgraph Nodes [Mock AI Agent Pool]
-        Node1[Agent Port 8001]
-        Node2[Agent Port 8002]
-        Node3[Agent Port 8003]
-    end
-    
-    RR -.-> Node1
-    LC -.-> Node2
-    RND -.-> Node3
-    
-    HealthDaemon[Health Daemon] -->|GET /health| Nodes
-    HealthDaemon -.->|Updates Pool| Router
+```
+                    ┌──────────────────────────────────┐
+                    │       Client / Stress Tester      │
+                    └──────────────┬───────────────────┘
+                                   │ POST /router/route?strategy=...
+                    ┌──────────────▼───────────────────┐
+                    │   AegisRoute Gateway (Port 8000)  │
+                    │                                   │
+                    │  ┌─────────────────────────────┐  │
+                    │  │   Load Balancing Engine      │  │
+                    │  │  ┌─────────┐ ┌───────────┐  │  │
+                    │  │  │Round    │ │Least      │  │  │
+                    │  │  │Robin    │ │Connections│  │  │
+                    │  │  ├─────────┤ ├───────────┤  │  │
+                    │  │  │Latency  │ │Weighted   │  │  │
+                    │  │  │Aware    │ │           │  │  │
+                    │  │  ├─────────┤ ├───────────┤  │  │
+                    │  │  │Random   │ │Adaptive   │  │  │
+                    │  │  └─────────┘ └───────────┘  │  │
+                    │  └─────────────────────────────┘  │
+                    │                                   │
+                    │  ┌──────────┐ ┌───────────────┐  │
+                    │  │ Health   │ │ Request       │  │
+                    │  │ Daemon   │ │ Tracer        │  │
+                    │  └──────────┘ └───────────────┘  │
+                    │  ┌──────────┐ ┌───────────────┐  │
+                    │  │ Metrics  │ │ Demo          │  │
+                    │  │Collector │ │ Engine        │  │
+                    │  └──────────┘ └───────────────┘  │
+                    └───────┬──────────┬──────────┬────┘
+                            │          │          │
+                    ┌───────▼──┐ ┌─────▼────┐ ┌──▼───────┐
+                    │Agent 8001│ │Agent 8002│ │Agent 8003│
+                    │ LLM Node │ │ LLM Node │ │ LLM Node │
+                    └──────────┘ └──────────┘ └──────────┘
 ```
 
-## 🧠 Core Logic Snippets
+---
 
-### Round-Robin Strategy
+## 🧠 Core Routing Logic
+
+### Round-Robin
 ```python
-if strategy == "round-robin":
-    global round_robin_index
-    node = healthy_nodes[round_robin_index % len(healthy_nodes)]
-    round_robin_index = (round_robin_index + 1) % len(healthy_nodes)
-    return node
+node = healthy[round_robin_index % len(healthy)]
+round_robin_index = (round_robin_index + 1) % len(healthy)
+return node, f"Round-robin index {round_robin_index} → port {node}"
 ```
 
-### Least-Connections Strategy
+### Least-Connections
 ```python
-elif strategy == "least-connections":
-    async with active_connections_lock:
-        # Sort healthy nodes by active connections
-        node = min(healthy_nodes, key=lambda p: active_connections[p])
-    return node
+async with active_connections_lock:
+    node = min(healthy, key=lambda p: active_connections[p])
+return node, f"Lowest active connections ({conns}) → port {node}"
 ```
 
-## 🧪 Try it Out
-
-**1. Ping the Health Check (Public Gateway)**
-```bash
-curl -X GET <PUBLIC_ROUTER_URL>/api/v1/balancer/stats
+### Latency-Aware
+```python
+node = min(healthy, key=lambda p: daemon.telemetry[p].latency_ms)
+return node, f"Lowest latency ({lat}ms) → port {node}"
 ```
 
-**2. Send a Query (Round Robin)**
+### Adaptive (Context-Aware)
+```python
+if dead_count > 0:
+    # Failover-first: route to healthiest node
+    node = max(healthy, key=lambda p: daemon.telemetry[p].health_score)
+    return node, f"Adaptive (failover-first) → healthiest port {node}"
+else:
+    # All healthy: use least-connections
+    node = min(healthy, key=lambda p: active_connections[p])
+    return node, f"Adaptive (least-connections) → port {node}"
+```
+
+---
+
+## 🧪 Test the API Gateway
+
+**1. Check System Status**
 ```bash
-curl -X POST "<PUBLIC_ROUTER_URL>/router/route?strategy=round-robin" \
+curl -X GET https://YOUR_RENDER_URL/api/v1/balancer/stats
+```
+
+**2. Route a Request (Adaptive Strategy)**
+```bash
+curl -X POST "https://YOUR_RENDER_URL/router/route?strategy=adaptive" \
      -H "Content-Type: application/json" \
-     -d '{"query":"Calculate prime numbers"}'
+     -d '{"query":"Solve differential equations"}'
 ```
 
-**3. Check the Dashboard**
-Navigate to the `<PUBLIC_DASHBOARD_URL>` provided during the pitch to see the glowing NOC Terminal in action!
+**3. View the Dashboard**
+Visit the deployed Streamlit URL and click the **🎬 Demo Mode** tab for an automated showcase.
+
+---
+
+## 🔗 Live Links
+- **Dashboard**: https://aegisroute.streamlit.app/
+- **Source Code**: https://github.com/lochangowda10/AegisRoute
