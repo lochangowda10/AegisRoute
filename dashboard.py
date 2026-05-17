@@ -146,14 +146,13 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN CONTENT — TAB LAYOUT
 # ═══════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4 = st.tabs(["🖥️ Command Center", "📈 Traffic Analytics", "🔍 Traces & Logs", "🎬 Demo Mode"])
-
 placeholder = st.empty()
 
 while True:
     stats = fetch_stats()
 
     with placeholder.container():
+        tab1, tab2, tab3, tab4 = st.tabs(["🖥️ Command Center", "📈 Traffic Analytics", "🔍 Traces & Logs", "🎬 Demo Mode"])
         if not stats:
             st.error(f"⚠️ Cannot connect to AegisRoute Router at `{ROUTER_URL}`")
             st.info("Make sure the backend is running. If deployed on Render, set `ROUTER_URL` in Streamlit secrets.")
