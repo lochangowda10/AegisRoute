@@ -9,6 +9,12 @@ from datetime import datetime
 
 st.set_page_config(page_title="AegisRoute NOC Terminal", layout="wide", page_icon="🛡️")
 
+# Initialize session state
+if "recent_requests" not in st.session_state:
+    st.session_state.recent_requests = []
+if "last_failover" not in st.session_state:
+    st.session_state.last_failover = None
+
 ROUTER_URL = os.environ.get("ROUTER_URL", "http://127.0.0.1:8000")
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -95,8 +101,25 @@ def api_post(path):
 def send_query(strategy, query):
     try:
         r = httpx.post(f"{ROUTER_URL}/router/route", params={"strategy": strategy}, json={"query": query}, timeout=5.0)
-        return r.json() if r.status_code == 200 else None
-    except Exception: return None
+        if r.status_code == 200:
+            data = r.json()
+            # Store request in session state
+            st.session_state.recent_requests.insert(0, {
+                "request_id": data.get("trace_id", f"req-{int(time.time() * 1000)}"),
+                "agent": data.get("instance_port", "unknown"),
+                "strategy": strategy,
+                "latency": data.get("latency_ms", 0),
+                "timestamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                "routing_reason": data.get("routing_reason", "")
+            })
+            # Keep only last 50 requests
+            if len(st.session_state.recent_requests) > 50:
+                st.session_state.recent_requests = st.session_state.recent_requests[:50]
+            return data
+        else:
+            return None
+    except Exception: 
+        return None
 
 def send_burst(strategy, count=20):
     from concurrent.futures import ThreadPoolExecutor
@@ -109,7 +132,7 @@ def send_burst(strategy, count=20):
         strat = random.choice(strategies)
         return send_query(strat, f"Burst #{i+1}")
 
-    # Fire all 20 requests concurrently across 10 threads
+    # Fire all requests concurrently across 10 threads
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(_fire, range(count)))
         
@@ -135,7 +158,23 @@ with st.sidebar:
         if r: st.success(f"Port {r.get('instance_port')} | {r.get('routing_reason','')[:50]}")
         else: st.error("Request failed")
 
-    if st.button("💥 Send Traffic Burst (20)", use_container_width=True):
+    st.markdown("#### 🚀 Traffic Generator")
+    tg1, tg2, tg3 = st.columns(3)
+    with tg1:
+        if st.button("100 Requests", use_container_width=True):
+            with st.spinner("Sending 100 requests..."): send_burst(strategy, 100)
+            st.success("100 requests sent!")
+    with tg2:
+        if st.button("500 Requests", use_container_width=True):
+            with st.spinner("Sending 500 requests..."): send_burst(strategy, 500)
+            st.success("500 requests sent!")
+    with tg3:
+        if st.button("1000 Requests", use_container_width=True):
+            with st.spinner("Sending 1000 requests..."): send_burst(strategy, 1000)
+            st.success("1000 requests sent!")
+            
+    st.markdown("#### 💥 Quick Burst")
+    if st.button("Send Traffic Burst (20)", use_container_width=True):
         with st.spinner("Sending 20 requests..."): send_burst(strategy, 20)
         st.success("Burst complete!")
 
@@ -266,16 +305,108 @@ while True:
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Traffic Distribution Bar Chart
-            st.markdown("#### 📊 Traffic Distribution")
-            chart_df = pd.DataFrame({
-                "Port": [f":{p}" for p in registered],
-                "Requests": [get_val(req_counts, "r", p) for p in registered]
-            })
-            if chart_df["Requests"].sum() > 0:
-                st.bar_chart(chart_df.set_index("Port"), color="#00d4ff", height=250)
-            else:
-                st.info("No traffic yet. Send requests using the sidebar controls.")
+            # Request Flow Visualization and Routing Decision Explanations
+            col_flow, col_decision = st.columns([1, 1])
+            
+            with col_flow:
+                st.markdown("#### 🔄 Request Flow Visualization")
+                if st.session_state.recent_requests:
+                    for req in st.session_state.recent_requests[:5]:
+                        st.markdown(f"""
+                        <div style="border-left:3px solid #00d4ff;padding-left:12px;margin-bottom:8px;background:#0d1117;border-radius:8px;">
+                            <div style="font-family:JetBrains Mono;font-size:0.9rem;font-weight:600;color:#00d4ff;">Request #{req['request_id']}</div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                                <span style="color:#8b949e;">→</span>
+                                <span style="background:rgba(0,255,136,0.1);color:#00ff88;padding:2px 8px;border-radius:4px;font-family:JetBrains Mono;">Agent-{req['agent']}</span>
+                            </div>
+                            <div style="display:flex;gap:16px;margin-top:4px;font-size:0.8rem;color:#8b949e;">
+                                <span>Strategy: {req['strategy']}</span>
+                                <span>Latency: {req['latency']}ms</span>
+                                <span>{req['timestamp']}</span>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("Send requests to see request flow visualization.")
+            
+            with col_decision:
+                st.markdown("#### 🧠 Routing Decision Explanations")
+                if st.session_state.recent_requests:
+                    req = st.session_state.recent_requests[0]
+                    # Get current active connections for all agents
+                    conn_list = []
+                    for p in registered:
+                        conn_list.append(f"Agent-{p} = {get_val(act_conn, 'active_connections', p)}")
+                    st.markdown(f"""
+                    <div class="node-card" style="border-left:3px solid #00d4ff;">
+                        <div style="font-weight:600;color:#00ff88;margin-bottom:8px;">Selected Agent</div>
+                        <div style="font-family:JetBrains Mono;font-size:1.2rem;color:#e6edf3;">Agent-{req['agent']}</div>
+                        <div style="margin-top:12px;">
+                            <div style="color:#8b949e;margin-bottom:4px;">Reason:</div>
+                            <div style="background:#0d1117;padding:8px 12px;border-radius:6px;font-family:JetBrains Mono;font-size:0.9rem;">
+                                {req['routing_reason']}
+                            </div>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <div style="color:#8b949e;margin-bottom:4px;">Current Connections:</div>
+                            <div style="background:#0d1117;padding:8px 12px;border-radius:6px;">
+                                {"<br>".join(conn_list)}
+                            </div>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <div style="color:#8b949e;margin-bottom:4px;">Health Status:</div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                {"".join([f'<span style="background:rgba(0,255,136,0.1);color:#00ff88;padding:2px 8px;border-radius:4px;font-size:0.8rem;">Agent-{p}: HEALTHY</span>' if p in healthy else f'<span style="background:rgba(255,68,68,0.1);color:#ff4444;padding:2px 8px;border-radius:4px;font-size:0.8rem;">Agent-{p}: QUARANTINED</span>' for p in registered])}
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.info("Send a request to see routing decision explanation.")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Traffic Distribution Bar Chart and Routing Percentages
+            col_dist, col_routing = st.columns([1, 1])
+            with col_dist:
+                st.markdown("#### 📊 Traffic Distribution")
+                chart_df = pd.DataFrame({
+                    "Port": [f":{p}" for p in registered],
+                    "Requests": [get_val(req_counts, "r", p) for p in registered]
+                })
+                if chart_df["Requests"].sum() > 0:
+                    st.bar_chart(chart_df.set_index("Port"), color="#00d4ff", height=250)
+                else:
+                    st.info("No traffic yet. Send requests using the sidebar controls.")
+            with col_routing:
+                st.markdown("#### 📋 Routing Percentages")
+                if st.session_state.recent_requests:
+                    # Calculate routing strategy percentages
+                    strategy_counts = {}
+                    total = len(st.session_state.recent_requests)
+                    for req in st.session_state.recent_requests:
+                        s = req["strategy"]
+                        strategy_counts[s] = strategy_counts.get(s, 0) + 1
+                    strategy_df = pd.DataFrame({
+                        "Strategy": list(strategy_counts.keys()),
+                        "Percentage": [round((count / total) * 100, 1) for count in strategy_counts.values()]
+                    })
+                    st.dataframe(strategy_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("Send requests to see routing percentages.")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Failover Indicator
+            if len(dead) > 0:
+                st.session_state.last_failover = time.time()
+            if st.session_state.last_failover and time.time() - st.session_state.last_failover < 10:
+                st.markdown("""
+                <div style="background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.3);border-radius:12px;padding:16px 24px;text-align:center;margin-bottom:20px;">
+                    <div style="font-size:1.5rem;font-weight:700;color:#ff4444;animation:flash 0.8s infinite;">⚠️ FAILOVER ACTIVATED</div>
+                    <div style="color:#8b949e;margin-top:4px;">Traffic automatically rerouted to healthy agents</div>
+                </div>
+                """, unsafe_allow_html=True)
 
         # ───────────────────────────────────────────────────────────
         # TAB 2: TRAFFIC ANALYTICS
@@ -332,22 +463,13 @@ while True:
                     st.info("No events yet.")
 
             with trace_col:
-                st.markdown("#### 🔍 Request Traces")
-                if traces_data:
-                    trace_rows = []
-                    for t in reversed(traces_data[-15:]):
-                        trace_rows.append({
-                            "Trace ID": t.get("trace_id", ""),
-                            "Time": datetime.fromtimestamp(t.get("timestamp", 0)).strftime("%H:%M:%S"),
-                            "Strategy": t.get("strategy", ""),
-                            "Node": f":{t.get('target_port', '')}",
-                            "Total (ms)": t.get("total_ms", 0),
-                            "Status": t.get("status", ""),
-                            "Reason": (t.get("routing_reason", ""))[:60],
-                        })
-                    st.dataframe(pd.DataFrame(trace_rows), use_container_width=True, hide_index=True)
+                st.markdown("#### 📝 Request Logging")
+                if st.session_state.recent_requests:
+                    log_df = pd.DataFrame(st.session_state.recent_requests)
+                    log_df.columns = ["Request ID", "Agent", "Routing Method", "Latency (ms)", "Time", "Reason"]
+                    st.dataframe(log_df, use_container_width=True, hide_index=True)
                 else:
-                    st.info("No traces yet. Send some requests!")
+                    st.info("Send requests to see request logging.")
 
         # ───────────────────────────────────────────────────────────
         # TAB 4: DEMO MODE
