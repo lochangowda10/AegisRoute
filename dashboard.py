@@ -209,8 +209,10 @@ with st.sidebar:
 # MAIN CONTENT — TAB LAYOUT
 # ═══════════════════════════════════════════════════════════════════════════
 placeholder = st.empty()
+loop_count = 0
 
 while True:
+    loop_count += 1
     stats = fetch_stats()
 
     with placeholder.container():
@@ -402,7 +404,7 @@ while True:
                              color_discrete_sequence=["#00d4ff"],
                              template="plotly_dark")
                 fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"rps_chart_{loop_count}")
             else:
                 st.info("Waiting for RPS data...")
 
@@ -420,7 +422,7 @@ while True:
                                 color_discrete_sequence=["#00d4ff"],
                                 template="plotly_dark")
                     fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key=f"dist_chart_{loop_count}")
                 else:
                     st.info("No requests yet!")
             with a2:
@@ -438,7 +440,7 @@ while True:
                                 color_discrete_sequence=px.colors.sequential.Rainbow,
                                 template="plotly_dark")
                     fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key=f"pie_chart_{loop_count}")
                 else:
                     st.info("Send requests to see strategy distribution!")
 
@@ -455,7 +457,7 @@ while True:
                             color_discrete_sequence=["#ffaa00"],
                             template="plotly_dark")
                 fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"lat_chart_{loop_count}")
             with b2:
                 st.markdown("#### 🔥 Load Heatmap")
                 heat_data = []
