@@ -219,6 +219,24 @@ async def get_stats():
         "average_latency": average_latency,
     }
 
+@app.post("/api/v1/balancer/reset")
+async def reset_stats():
+    global total_requests, round_robin_index, start_time, _rps_counter
+    total_requests = 0
+    round_robin_index = 0
+    start_time = time.time()
+    _rps_counter = 0
+    traces.clear()
+    rps_history.clear()
+    daemon.event_log.clear()
+    daemon.failovers_triggered = 0
+    for p in REGISTERED_PORTS:
+        request_counts[p] = 0
+        error_counts[p] = 0
+        # Active connections are not cleared because they track currently inflight requests.
+    daemon._emit("INFO", 0, "System metrics reset to zero")
+    return {"status": "reset"}
+
 # ---------------------------------------------------------------------------
 # Chaos Engineering (cloud-safe — router proxies the kill/restore)
 # ---------------------------------------------------------------------------

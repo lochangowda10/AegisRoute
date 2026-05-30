@@ -211,6 +211,12 @@ with st.sidebar:
             if st.button("🚀 Launch Demo", use_container_width=True, type="primary"):
                 api_post("/api/v1/demo/start")
 
+    st.markdown("---")
+    st.markdown("#### 🧹 Admin Controls")
+    if st.button("Reset All Stats", use_container_width=True):
+        api_post("/api/v1/balancer/reset")
+        st.success("Stats reset to zero!")
+
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN CONTENT — TAB LAYOUT
 # ═══════════════════════════════════════════════════════════════════════════
