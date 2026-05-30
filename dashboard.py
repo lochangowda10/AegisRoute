@@ -134,10 +134,16 @@ def send_query(strategy, query):
 def send_burst(strategy, count=20):
     from concurrent.futures import ThreadPoolExecutor
     import random
+    from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
+    
+    ctx = get_script_run_ctx()
     strategies = ["round-robin", "least-connections", "random", "latency-aware", "weighted", "adaptive"]
+    
     def _fire(i):
+        if ctx: add_script_run_ctx(ctx=ctx)
         strat = random.choice(strategies)
         return send_query(strat, f"Burst-{i+1}")
+        
     with ThreadPoolExecutor(max_workers=5) as executor:
         list(executor.map(_fire, range(count)))
 
