@@ -99,11 +99,21 @@ def send_query(strategy, query):
     except Exception: return None
 
 def send_burst(strategy, count=20):
-    results = []
-    for i in range(count):
-        r = send_query(strategy, f"Burst #{i+1}")
-        if r: results.append(r)
-    return results
+    from concurrent.futures import ThreadPoolExecutor
+    import random
+    
+    strategies = ["round-robin", "least-connections", "latency-aware", "adaptive", "weighted", "random"]
+    
+    def _fire(i):
+        # Mix strategies randomly for the burst, ignoring the sidebar selection
+        strat = random.choice(strategies)
+        return send_query(strat, f"Burst #{i+1}")
+
+    # Fire all 20 requests concurrently across 10 threads
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = list(executor.map(_fire, range(count)))
+        
+    return [r for r in results if r]
 
 def get_val(d, key, port, default=0):
     """Safely get a value from a dict that may have string or int keys."""
