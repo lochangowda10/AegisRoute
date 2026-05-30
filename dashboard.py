@@ -11,7 +11,7 @@ st.set_page_config(page_title="AegisRoute NOC Terminal", layout="wide", page_ico
 
 # Initialize session state
 if "recent_requests" not in st.session_state:
-    st.session_state.recent_requests = []
+    st.session_state.recent_requests = []  # Keep last 20 requests only
 if "last_failover" not in st.session_state:
     st.session_state.last_failover = None
 
@@ -112,9 +112,9 @@ def send_query(strategy, query):
                 "timestamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
                 "routing_reason": data.get("routing_reason", "")
             })
-            # Keep only last 50 requests
-            if len(st.session_state.recent_requests) > 50:
-                st.session_state.recent_requests = st.session_state.recent_requests[:50]
+            # Keep only last 20 requests to save memory
+            if len(st.session_state.recent_requests) > 20:
+                st.session_state.recent_requests = st.session_state.recent_requests[:20]
             return data
         else:
             return None
@@ -132,8 +132,8 @@ def send_burst(strategy, count=20):
         strat = random.choice(strategies)
         return send_query(strat, f"Burst #{i+1}")
 
-    # Fire all requests concurrently across 10 threads
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    # Fire requests across 5 threads (reduced for memory)
+    with ThreadPoolExecutor(max_workers=5) as executor:
         results = list(executor.map(_fire, range(count)))
         
     return [r for r in results if r]
@@ -158,22 +158,7 @@ with st.sidebar:
         if r: st.success(f"Port {r.get('instance_port')} | {r.get('routing_reason','')[:50]}")
         else: st.error("Request failed")
 
-    st.markdown("#### 🚀 Traffic Generator")
-    tg1, tg2, tg3 = st.columns(3)
-    with tg1:
-        if st.button("100 Requests", use_container_width=True):
-            with st.spinner("Sending 100 requests..."): send_burst(strategy, 100)
-            st.success("100 requests sent!")
-    with tg2:
-        if st.button("500 Requests", use_container_width=True):
-            with st.spinner("Sending 500 requests..."): send_burst(strategy, 500)
-            st.success("500 requests sent!")
-    with tg3:
-        if st.button("1000 Requests", use_container_width=True):
-            with st.spinner("Sending 1000 requests..."): send_burst(strategy, 1000)
-            st.success("1000 requests sent!")
-            
-    st.markdown("#### 💥 Quick Burst")
+    st.markdown("#### 💥 Traffic Burst")
     if st.button("Send Traffic Burst (20)", use_container_width=True):
         with st.spinner("Sending 20 requests..."): send_burst(strategy, 20)
         st.success("Burst complete!")
