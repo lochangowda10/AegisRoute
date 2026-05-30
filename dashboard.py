@@ -400,11 +400,7 @@ while True:
             if rps_data:
                 rps_df = pd.DataFrame(rps_data)
                 rps_df["time"] = pd.to_datetime(rps_df["time"], unit="s")
-                fig = px.line(rps_df, x="time", y="rps",
-                             color_discrete_sequence=["#00d4ff"],
-                             template="plotly_dark")
-                fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                st.plotly_chart(fig, use_container_width=True, key=f"rps_chart_{loop_count}")
+                st.line_chart(rps_df.set_index("time")["rps"], color="#00d4ff", height=250)
             else:
                 st.info("Waiting for RPS data...")
 
@@ -418,11 +414,7 @@ while True:
                     "Requests": [get_val(req_counts, "r", p) for p in registered]
                 })
                 if dist_df["Requests"].sum() > 0:
-                    fig = px.bar(dist_df, x="Agent", y="Requests",
-                                color_discrete_sequence=["#00d4ff"],
-                                template="plotly_dark")
-                    fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                    st.plotly_chart(fig, use_container_width=True, key=f"dist_chart_{loop_count}")
+                    st.bar_chart(dist_df.set_index("Agent"), color="#00d4ff", height=250)
                 else:
                     st.info("No requests yet!")
             with a2:
@@ -436,11 +428,7 @@ while True:
                         "Strategy": list(strat_counts.keys()),
                         "Count": list(strat_counts.values())
                     })
-                    fig = px.pie(strat_df, values="Count", names="Strategy",
-                                color_discrete_sequence=px.colors.sequential.Rainbow,
-                                template="plotly_dark")
-                    fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                    st.plotly_chart(fig, use_container_width=True, key=f"pie_chart_{loop_count}")
+                    st.bar_chart(strat_df.set_index("Strategy"), color="#00ff88", height=250)
                 else:
                     st.info("Send requests to see strategy distribution!")
 
@@ -453,11 +441,7 @@ while True:
                     "Agent": [f"Agent-{p}" for p in registered],
                     "Latency (ms)": [telemetry.get(str(p), {}).get("latency_ms", 0) for p in registered]
                 })
-                fig = px.bar(lat_df, x="Agent", y="Latency (ms)",
-                            color_discrete_sequence=["#ffaa00"],
-                            template="plotly_dark")
-                fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                st.plotly_chart(fig, use_container_width=True, key=f"lat_chart_{loop_count}")
+                st.bar_chart(lat_df.set_index("Agent"), color="#ffaa00", height=250)
             with b2:
                 st.markdown("#### 🔥 Load Heatmap")
                 heat_data = []
