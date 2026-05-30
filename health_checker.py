@@ -38,6 +38,7 @@ class HealthCheckerDaemon:
         self.event_log: List[EventLogEntry] = []
         self._max_events = 200
         self.running = False
+        self.failovers_triggered = 0
 
     def _emit(self, level, port, msg):
         self.event_log.append(EventLogEntry(time.time(), level, port, msg))
@@ -70,6 +71,7 @@ class HealthCheckerDaemon:
             self.telemetry[port].latency_ms = 9999.0
             if port in self.healthy_pool and self.consecutive_failures[port] >= 2:
                 self.healthy_pool.remove(port); self.dead_pool.add(port)
+                self.failovers_triggered += 1
                 self._emit("CRITICAL", port, "Node failed checks — quarantined")
         self._score(port)
 

@@ -183,6 +183,8 @@ async def route_query(request: QueryRequest, strategy: str = Query("round-robin"
 async def get_stats():
     uptime = round(time.time() - start_time, 1)
     telemetry_data = {}
+    total_latency = 0.0
+    healthy_count = 0
     for p in REGISTERED_PORTS:
         t = daemon.telemetry[p]
         telemetry_data[str(p)] = {
@@ -191,6 +193,10 @@ async def get_stats():
             "uptime_seconds": t.uptime_seconds, "model": t.model,
             "version": t.version, "region": t.region,
         }
+        if p in daemon.healthy_pool:
+            total_latency += t.latency_ms
+            healthy_count += 1
+    average_latency = round(total_latency / max(healthy_count, 1), 1) if healthy_count > 0 else 0
     return {
         "registered_instances": REGISTERED_PORTS,
         "healthy_instances": sorted(daemon.healthy_pool),
@@ -209,6 +215,8 @@ async def get_stats():
         ],
         "demo_active": demo_running,
         "strategies_available": STRATEGY_NAMES,
+        "failovers_triggered": daemon.failovers_triggered,
+        "average_latency": average_latency,
     }
 
 # ---------------------------------------------------------------------------

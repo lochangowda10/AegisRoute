@@ -1,24 +1,26 @@
 """
-AegisRoute — NOC Terminal Dashboard v2.0
-Enterprise-grade, 4-tab Datadog/Grafana-inspired observability platform.
+AegisRoute — AI Agent Orchestration & Intelligent Routing Infrastructure
+Enterprise-grade observability platform for hackathon demos.
 """
 import streamlit as st
 import httpx, os, time, json
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime
 
-st.set_page_config(page_title="AegisRoute NOC Terminal", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="AegisRoute Orchestration", layout="wide", page_icon="🛡️")
 
 # Initialize session state
 if "recent_requests" not in st.session_state:
-    st.session_state.recent_requests = []  # Keep last 20 requests only
+    st.session_state.recent_requests = []  # Keep last 100 requests
 if "last_failover" not in st.session_state:
     st.session_state.last_failover = None
 
 ROUTER_URL = os.environ.get("ROUTER_URL", "http://127.0.0.1:8000")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# GLOBAL CSS — Dark Futuristic NOC Terminal Theme
+# GLOBAL CSS — Dark Cloud Infrastructure Theme
 # ═══════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -103,43 +105,43 @@ def send_query(strategy, query):
         r = httpx.post(f"{ROUTER_URL}/router/route", params={"strategy": strategy}, json={"query": query}, timeout=5.0)
         if r.status_code == 200:
             data = r.json()
-            # Store request in session state
             st.session_state.recent_requests.insert(0, {
-                "request_id": data.get("trace_id", f"req-{int(time.time() * 1000)}"),
-                "agent": data.get("instance_port", "unknown"),
-                "strategy": strategy,
-                "latency": data.get("latency_ms", 0),
-                "timestamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
-                "routing_reason": data.get("routing_reason", "")
+                "Request ID": data.get("trace_id", f"req-{int(time.time() * 1000)}"),
+                "Agent": data.get("instance_port", "unknown"),
+                "Strategy": strategy,
+                "Latency (ms)": data.get("latency_ms", 0),
+                "Status": "Success",
+                "Timestamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
+                "Reason": data.get("routing_reason", ""),
             })
-            # Keep only last 20 requests to save memory
-            if len(st.session_state.recent_requests) > 20:
-                st.session_state.recent_requests = st.session_state.recent_requests[:20]
+            if len(st.session_state.recent_requests) > 100:
+                st.session_state.recent_requests = st.session_state.recent_requests[:100]
             return data
         else:
             return None
     except Exception: 
+        st.session_state.recent_requests.insert(0, {
+            "Request ID": f"req-{int(time.time() * 1000)}",
+            "Agent": "unknown",
+            "Strategy": strategy,
+            "Latency (ms)": 0,
+            "Status": "Failed",
+            "Timestamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
+            "Reason": "Request failed",
+        })
         return None
 
 def send_burst(strategy, count=20):
     from concurrent.futures import ThreadPoolExecutor
     import random
-    
-    strategies = ["round-robin", "least-connections", "latency-aware", "adaptive", "weighted", "random"]
-    
+    strategies = ["round-robin", "least-connections", "random", "latency-aware", "weighted", "adaptive"]
     def _fire(i):
-        # Mix strategies randomly for the burst, ignoring the sidebar selection
         strat = random.choice(strategies)
-        return send_query(strat, f"Burst #{i+1}")
-
-    # Fire requests across 5 threads (reduced for memory)
+        return send_query(strat, f"Burst-{i+1}")
     with ThreadPoolExecutor(max_workers=5) as executor:
-        results = list(executor.map(_fire, range(count)))
-        
-    return [r for r in results if r]
+        list(executor.map(_fire, range(count)))
 
 def get_val(d, key, port, default=0):
-    """Safely get a value from a dict that may have string or int keys."""
     return d.get(str(port), d.get(port, default))
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -147,45 +149,61 @@ def get_val(d, key, port, default=0):
 # ═══════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown("### 🛡️ AegisRoute")
-    st.markdown("*AI Orchestration Engine*")
+    st.markdown("**AI Agent Orchestration & Intelligent Routing Infrastructure**")
     st.markdown("---")
 
-    st.markdown("#### ⚡ Quick Actions")
-    strategy = st.selectbox("Routing Strategy", ["round-robin","least-connections","random","latency-aware","weighted","adaptive"])
-    query_text = st.text_input("Test Query", "Inference request")
+    st.markdown("#### ⚡ Routing Engine")
+    strategy = st.selectbox("Select Strategy", ["round-robin","least-connections","random","latency-aware","weighted","adaptive"])
+    query_text = st.text_input("Test Query", "Hello, Agent!")
     if st.button("🚀 Send Query", use_container_width=True):
         r = send_query(strategy, query_text)
-        if r: st.success(f"Port {r.get('instance_port')} | {r.get('routing_reason','')[:50]}")
+        if r: st.success(f"Success! Agent-{r.get('instance_port')}")
         else: st.error("Request failed")
 
-    st.markdown("#### 💥 Traffic Burst")
-    if st.button("Send Traffic Burst (20)", use_container_width=True):
-        with st.spinner("Sending 20 requests..."): send_burst(strategy, 20)
-        st.success("Burst complete!")
+    st.markdown("#### 🚀 Traffic Generator")
+    tg1, tg2, tg3 = st.columns(3)
+    with tg1:
+        if st.button("50 Requests", use_container_width=True):
+            with st.spinner("Sending 50 requests..."): send_burst(strategy, 50)
+            st.success("50 requests sent!")
+    with tg2:
+        if st.button("100 Requests", use_container_width=True):
+            with st.spinner("Sending 100 requests..."): send_burst(strategy, 100)
+            st.success("100 requests sent!")
+    with tg3:
+        if st.button("500 Requests", use_container_width=True):
+            with st.spinner("Sending 500 requests..."): send_burst(strategy, 500)
+            st.success("500 requests sent!")
 
     st.markdown("---")
-    st.markdown("#### 🔧 Chaos Engineering")
+    st.markdown("#### 🔧 Failover Manager")
     sidebar_stats = fetch_stats()
     if sidebar_stats:
         for p in sidebar_stats.get("registered_instances", []):
             is_h = p in sidebar_stats.get("healthy_instances", [])
-            c1, c2 = st.columns(2)
-            with c1: st.markdown(f"**:{('green' if is_h else 'red')}[Node {p}]**")
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                status_emoji = "🟢" if is_h else "🔴"
+                st.markdown(f"**{status_emoji} Agent-{p}**")
             with c2:
                 if is_h:
-                    if st.button(f"Kill", key=f"k{p}", use_container_width=True): api_post(f"/api/v1/agents/{p}/kill")
+                    if st.button("Kill", key=f"k{p}", use_container_width=True):
+                        api_post(f"/api/v1/agents/{p}/kill")
                 else:
-                    if st.button(f"Heal", key=f"r{p}", use_container_width=True): api_post(f"/api/v1/agents/{p}/restore")
+                    if st.button("Restore", key=f"r{p}", use_container_width=True):
+                        api_post(f"/api/v1/agents/{p}/restore")
 
     st.markdown("---")
-    st.markdown("#### 🎬 Demo Engine")
+    st.markdown("#### 🎬 Demo Mode")
     demo_sidebar_stats = fetch_stats()
     if demo_sidebar_stats:
         if demo_sidebar_stats.get("demo_active", False):
-            st.warning("🔴 Demo is currently LIVE")
-            if st.button("⏹️ Stop Demo", use_container_width=True): api_post("/api/v1/demo/stop")
+            st.warning("🔴 Demo is LIVE!")
+            if st.button("⏹️ Stop Demo", use_container_width=True):
+                api_post("/api/v1/demo/stop")
         else:
-            if st.button("🚀 Start Demo", use_container_width=True, type="primary"): api_post("/api/v1/demo/start")
+            if st.button("🚀 Launch Demo", use_container_width=True, type="primary"):
+                api_post("/api/v1/demo/start")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN CONTENT — TAB LAYOUT
@@ -196,10 +214,10 @@ while True:
     stats = fetch_stats()
 
     with placeholder.container():
-        tab1, tab2, tab3, tab4 = st.tabs(["🖥️ Command Center", "📈 Traffic Analytics", "🔍 Traces & Logs", "🎬 Demo Mode"])
+        tab1, tab2, tab3, tab4 = st.tabs(["🏠 Infrastructure Overview", "📊 Traffic Analytics", "📝 Request Logs & Traces", "🎬 Demo Mode"])
         if not stats:
             st.error(f"⚠️ Cannot connect to AegisRoute Router at `{ROUTER_URL}`")
-            st.info("Make sure the backend is running. If deployed on Render, set `ROUTER_URL` in Streamlit secrets.")
+            st.info("Make sure the backend is running (cloud_runner.py) and set ROUTER_URL in secrets if deployed.")
             time.sleep(2); continue
 
         registered = stats.get("registered_instances", [])
@@ -216,180 +234,159 @@ while True:
         uptime = stats.get("uptime_seconds", 0)
         demo_active = stats.get("demo_active", False)
         total_errs = sum(err_counts.get(str(p), err_counts.get(p, 0)) for p in registered)
-        err_rate = round((total_errs / max(total_proc, 1)) * 100, 1)
+        err_rate = round((total_errs / max(total_proc, 1)) * 100, 1) if total_proc > 0 else 0
         current_rps = rps_data[-1]["rps"] if rps_data else 0
+        failovers = stats.get("failovers_triggered", 0)
+        avg_latency = stats.get("average_latency", 0)
+        success_rate = 100 - err_rate if total_proc > 0 else 100
 
         # ───────────────────────────────────────────────────────────
-        # TAB 1: COMMAND CENTER
+        # TAB 1: INFRASTRUCTURE OVERVIEW
         # ───────────────────────────────────────────────────────────
         with tab1:
             # Hero Banner
             sys_status = "OPERATIONAL" if len(dead) == 0 else ("DEGRADED" if len(healthy) > 0 else "OFFLINE")
             scls = {"OPERATIONAL":"status-online","DEGRADED":"status-degraded","OFFLINE":"status-offline"}[sys_status]
-            sym = {"OPERATIONAL":"●","DEGRADED":"◐","OFFLINE":"✕"}[sys_status]
+            sym = {"OPERATIONAL":"🟢","DEGRADED":"🟡","OFFLINE":"🔴"}[sys_status]
             hours = int(uptime // 3600); mins = int((uptime % 3600) // 60); secs = int(uptime % 60)
             st.markdown(f"""<div class="hero-banner">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div><div class="hero-title">AegisRoute Orchestration Engine</div>
-                    <div class="hero-sub">AI-Native Agent Load Balancing & Resilience Infrastructure</div></div>
-                    <div style="text-align:right;"><span class="hero-status {scls}">{sym} {sys_status}</span>
-                    <div style="color:#8b949e;font-size:0.8rem;margin-top:6px;">Uptime: {hours}h {mins}m {secs}s</div></div>
-                </div></div>""", unsafe_allow_html=True)
+                    <div>
+                        <div class="hero-title">AegisRoute Orchestration Engine</div>
+                        <div class="hero-sub">AI Agent Orchestration & Intelligent Routing Infrastructure</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="hero-status {scls}">{sym} {sys_status}</span>
+                        <div style="color:#8b949e;font-size:0.8rem;margin-top:6px;">Uptime: {hours}h {mins}m {secs}s</div>
+                    </div>
+                </div>
+            </div>""", unsafe_allow_html=True)
 
             # Metric Cards
-            c1,c2,c3,c4,c5,c6 = st.columns(6)
-            cards = [
-                (c1, str(len(registered)), "Managed Nodes", "val-cyan"),
-                (c2, str(len(healthy)), "Healthy", "val-green"),
-                (c3, str(len(dead)), "Quarantined", "val-red"),
-                (c4, str(total_proc), "Total Requests", "val-cyan"),
-                (c5, str(current_rps), "Req/Sec", "val-amber"),
-                (c6, f"{err_rate}%", "Error Rate", "val-red" if err_rate > 5 else "val-green"),
+            m1, m2, m3, m4, m5, m6 = st.columns(6)
+            metrics = [
+                (m1, str(total_proc), "Total Requests", "val-cyan"),
+                (m2, str(len(healthy)), "Healthy Agents", "val-green"),
+                (m3, str(len(dead)), "Quarantined", "val-red"),
+                (m4, str(failovers), "Failovers Triggered", "val-amber"),
+                (m5, str(avg_latency), "Avg Latency (ms)", "val-cyan"),
+                (m6, f"{success_rate}%", "Success Rate", "val-green" if success_rate > 95 else "val-amber"),
             ]
-            for col, val, label, vcls in cards:
+            for col, val, label, vcls in metrics:
                 with col:
                     st.markdown(f'<div class="glass-card"><div class="card-value {vcls}">{val}</div><div class="card-label">{label}</div></div>', unsafe_allow_html=True)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Agent Topology Grid
-            st.markdown("#### 🌐 Agent Topology")
-            node_cols = st.columns(len(registered))
+            # Agent Registry
+            st.markdown("#### 📋 Agent Registry")
+            agent_cols = st.columns(len(registered))
             for i, p in enumerate(registered):
-                with node_cols[i]:
+                with agent_cols[i]:
                     is_h = p in healthy
                     cls = "node-card-healthy" if is_h else "node-card-dead"
-                    badge = '<span class="badge-on">● Operational</span>' if is_h else '<span class="badge-off">▲ Quarantined</span>'
+                    badge = '<span class="badge-on">🟢 Healthy</span>' if is_h else '<span class="badge-off">🔴 Quarantined</span>'
                     t = telemetry.get(str(p), {})
                     cpu = t.get("cpu_percent", 0); mem = t.get("memory_percent", 0)
                     hs = t.get("health_score", 0); lat = t.get("latency_ms", 0)
-                    model = t.get("model", "—"); ver = t.get("version", "—")
+                    reqs = get_val(req_counts, "r", p)
+                    conns = get_val(act_conn, "active_connections", p)
                     cpu_cls = "fill-green" if cpu < 60 else ("fill-amber" if cpu < 80 else "fill-red")
                     mem_cls = "fill-green" if mem < 60 else ("fill-amber" if mem < 80 else "fill-red")
-                    hs_cls = "fill-green" if hs > 60 else ("fill-amber" if hs > 30 else "fill-red")
-                    reqs = get_val(req_counts, "total_requests", p)
-                    conns = get_val(act_conn, "active_connections", p)
 
-                    st.markdown(f"""<div class="node-card {cls}">
-                        <div class="node-port">:{p}</div>
+                    st.markdown(f"""
+                    <div class="node-card {cls}">
+                        <div class="node-port">Agent-{p}</div>
                         {badge}
-                        <div style="margin-top:10px;font-size:0.8rem;color:#8b949e;">{model} v{ver}</div>
+                        <div style="margin-top:12px;">
+                            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#8b949e;">
+                                <span>Health Score</span><span>{hs}/100</span>
+                            </div>
+                            <div class="progress-wrap"><div class="progress-fill fill-green" style="width:{hs}%"></div></div>
+                        </div>
                         <div style="margin-top:10px;">
-                            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#8b949e;"><span>Health</span><span>{hs}/100</span></div>
-                            <div class="progress-wrap"><div class="progress-fill {hs_cls}" style="width:{hs}%"></div></div>
-                            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#8b949e;margin-top:6px;"><span>CPU</span><span>{cpu}%</span></div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#8b949e;">
+                                <span>CPU</span><span>{cpu}%</span>
+                            </div>
                             <div class="progress-wrap"><div class="progress-fill {cpu_cls}" style="width:{cpu}%"></div></div>
-                            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#8b949e;margin-top:6px;"><span>Memory</span><span>{mem}%</span></div>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#8b949e;">
+                                <span>Memory</span><span>{mem}%</span>
+                            </div>
                             <div class="progress-wrap"><div class="progress-fill {mem_cls}" style="width:{mem}%"></div></div>
                         </div>
-                        <div style="margin-top:10px;font-size:0.8rem;">
-                            <span style="color:#8b949e;">Latency:</span> <span style="color:#00d4ff;">{lat}ms</span><br>
-                            <span style="color:#8b949e;">Requests:</span> <span style="color:#e6edf3;">{reqs}</span> |
-                            <span style="color:#8b949e;">Active:</span> <span style="color:#ffaa00;">{conns}</span>
-                        </div></div>""", unsafe_allow_html=True)
+                        <div style="margin-top:12px;font-size:0.85rem;">
+                            <div>⏱️ Latency: <span style="color:#00d4ff;font-family:JetBrains Mono">{lat}ms</span></div>
+                            <div>📨 Requests: <span style="color:#00ff88;font-family:JetBrains Mono">{reqs}</span></div>
+                            <div>🔗 Active: <span style="color:#ffaa00;font-family:JetBrains Mono">{conns}</span></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Request Flow Visualization and Routing Decision Explanations
-            col_flow, col_decision = st.columns([1, 1])
-            
-            with col_flow:
+            # Request Flow & Routing Decision
+            flow_col, decision_col = st.columns([1, 1])
+            with flow_col:
                 st.markdown("#### 🔄 Request Flow Visualization")
                 if st.session_state.recent_requests:
-                    for req in st.session_state.recent_requests[:5]:
+                    for req in st.session_state.recent_requests[:8]:
                         st.markdown(f"""
                         <div style="border-left:3px solid #00d4ff;padding-left:12px;margin-bottom:8px;background:#0d1117;border-radius:8px;">
-                            <div style="font-family:JetBrains Mono;font-size:0.9rem;font-weight:600;color:#00d4ff;">Request #{req['request_id']}</div>
+                            <div style="font-family:JetBrains Mono;font-size:0.9rem;font-weight:600;color:#00d4ff;">Request #{req['Request ID']}</div>
                             <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
                                 <span style="color:#8b949e;">→</span>
-                                <span style="background:rgba(0,255,136,0.1);color:#00ff88;padding:2px 8px;border-radius:4px;font-family:JetBrains Mono;">Agent-{req['agent']}</span>
+                                <span style="background:rgba(0,255,136,0.1);color:#00ff88;padding:2px 8px;border-radius:4px;font-family:JetBrains Mono">Agent-{req['Agent']}</span>
                             </div>
                             <div style="display:flex;gap:16px;margin-top:4px;font-size:0.8rem;color:#8b949e;">
-                                <span>Strategy: {req['strategy']}</span>
-                                <span>Latency: {req['latency']}ms</span>
-                                <span>{req['timestamp']}</span>
+                                <span>Strategy: {req['Strategy']}</span>
+                                <span>Latency: {req['Latency (ms)']}ms</span>
+                                <span>{req['Timestamp']}</span>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
                 else:
-                    st.info("Send requests to see request flow visualization.")
-            
-            with col_decision:
-                st.markdown("#### 🧠 Routing Decision Explanations")
+                    st.info("Send requests using the sidebar to see live flow!")
+
+            with decision_col:
+                st.markdown("#### 🧠 Routing Decision Explainer")
                 if st.session_state.recent_requests:
-                    req = st.session_state.recent_requests[0]
-                    # Get current active connections for all agents
+                    latest_req = st.session_state.recent_requests[0]
                     conn_list = []
                     for p in registered:
                         conn_list.append(f"Agent-{p} = {get_val(act_conn, 'active_connections', p)}")
                     st.markdown(f"""
                     <div class="node-card" style="border-left:3px solid #00d4ff;">
                         <div style="font-weight:600;color:#00ff88;margin-bottom:8px;">Selected Agent</div>
-                        <div style="font-family:JetBrains Mono;font-size:1.2rem;color:#e6edf3;">Agent-{req['agent']}</div>
+                        <div style="font-family:JetBrains Mono;font-size:1.3rem;color:#e6edf3;">Agent-{latest_req['Agent']}</div>
                         <div style="margin-top:12px;">
-                            <div style="color:#8b949e;margin-bottom:4px;">Reason:</div>
-                            <div style="background:#0d1117;padding:8px 12px;border-radius:6px;font-family:JetBrains Mono;font-size:0.9rem;">
-                                {req['routing_reason']}
+                            <div style="color:#8b949e;margin-bottom:4px;">Decision Reason:</div>
+                            <div style="background:#0d1117;padding:10px 14px;border-radius:6px;font-family:JetBrains Mono;font-size:0.9rem;">
+                                {latest_req['Reason']}
                             </div>
                         </div>
                         <div style="margin-top:12px;">
                             <div style="color:#8b949e;margin-bottom:4px;">Current Connections:</div>
-                            <div style="background:#0d1117;padding:8px 12px;border-radius:6px;">
-                                {"<br>".join(conn_list)}
-                            </div>
-                        </div>
-                        <div style="margin-top:12px;">
-                            <div style="color:#8b949e;margin-bottom:4px;">Health Status:</div>
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                {"".join([f'<span style="background:rgba(0,255,136,0.1);color:#00ff88;padding:2px 8px;border-radius:4px;font-size:0.8rem;">Agent-{p}: HEALTHY</span>' if p in healthy else f'<span style="background:rgba(255,68,68,0.1);color:#ff4444;padding:2px 8px;border-radius:4px;font-size:0.8rem;">Agent-{p}: QUARANTINED</span>' for p in registered])}
+                            <div style="background:#0d1117;padding:10px 14px;border-radius:6px;">
+                                {'<br>'.join(conn_list)}
                             </div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
-                    st.info("Send a request to see routing decision explanation.")
+                    st.info("Send a request to see the decision explainer!")
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Traffic Distribution Bar Chart and Routing Percentages
-            col_dist, col_routing = st.columns([1, 1])
-            with col_dist:
-                st.markdown("#### 📊 Traffic Distribution")
-                chart_df = pd.DataFrame({
-                    "Port": [f":{p}" for p in registered],
-                    "Requests": [get_val(req_counts, "r", p) for p in registered]
-                })
-                if chart_df["Requests"].sum() > 0:
-                    st.bar_chart(chart_df.set_index("Port"), color="#00d4ff", height=250)
-                else:
-                    st.info("No traffic yet. Send requests using the sidebar controls.")
-            with col_routing:
-                st.markdown("#### 📋 Routing Percentages")
-                if st.session_state.recent_requests:
-                    # Calculate routing strategy percentages
-                    strategy_counts = {}
-                    total = len(st.session_state.recent_requests)
-                    for req in st.session_state.recent_requests:
-                        s = req["strategy"]
-                        strategy_counts[s] = strategy_counts.get(s, 0) + 1
-                    strategy_df = pd.DataFrame({
-                        "Strategy": list(strategy_counts.keys()),
-                        "Percentage": [round((count / total) * 100, 1) for count in strategy_counts.values()]
-                    })
-                    st.dataframe(strategy_df, use_container_width=True, hide_index=True)
-                else:
-                    st.info("Send requests to see routing percentages.")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Failover Indicator
+            # Failover Alert Banner
             if len(dead) > 0:
                 st.session_state.last_failover = time.time()
-            if st.session_state.last_failover and time.time() - st.session_state.last_failover < 10:
+            if st.session_state.last_failover and time.time() - st.session_state.last_failover < 12:
                 st.markdown("""
                 <div style="background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.3);border-radius:12px;padding:16px 24px;text-align:center;margin-bottom:20px;">
-                    <div style="font-size:1.5rem;font-weight:700;color:#ff4444;animation:flash 0.8s infinite;">⚠️ FAILOVER ACTIVATED</div>
-                    <div style="color:#8b949e;margin-top:4px;">Traffic automatically rerouted to healthy agents</div>
+                    <div style="font-size:1.6rem;font-weight:700;color:#ff4444;animation:flash 0.8s infinite;">⚠️ FAILOVER ACTIVATED</div>
+                    <div style="color:#8b949e;margin-top:6px;">Traffic automatically rerouted to healthy agents — zero downtime!</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -397,98 +394,146 @@ while True:
         # TAB 2: TRAFFIC ANALYTICS
         # ───────────────────────────────────────────────────────────
         with tab2:
-            st.markdown("#### 📈 Requests Per Second (Rolling)")
+            st.markdown("#### 📈 Requests Per Second (RPS)")
             if rps_data:
                 rps_df = pd.DataFrame(rps_data)
                 rps_df["time"] = pd.to_datetime(rps_df["time"], unit="s")
-                st.line_chart(rps_df.set_index("time")["rps"], color="#00d4ff", height=200)
+                fig = px.line(rps_df, x="time", y="rps",
+                             color_discrete_sequence=["#00d4ff"],
+                             template="plotly_dark")
+                fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
+                st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Waiting for RPS data...")
 
             st.markdown("---")
-            ac1, ac2 = st.columns(2)
-            with ac1:
-                st.markdown("#### ⏱️ Latency per Node")
-                lat_df = pd.DataFrame({
-                    "Port": [f":{p}" for p in registered],
-                    "Latency (ms)": [telemetry.get(str(p), {}).get("latency_ms", 0) for p in registered]
+
+            a1, a2 = st.columns(2)
+            with a1:
+                st.markdown("#### 📊 Request Distribution by Agent")
+                dist_df = pd.DataFrame({
+                    "Agent": [f"Agent-{p}" for p in registered],
+                    "Requests": [get_val(req_counts, "r", p) for p in registered]
                 })
-                st.bar_chart(lat_df.set_index("Port"), color="#ffaa00", height=200)
-            with ac2:
-                st.markdown("#### 🔴 Error Distribution")
-                err_df = pd.DataFrame({
-                    "Port": [f":{p}" for p in registered],
-                    "Errors": [err_counts.get(str(p), err_counts.get(p, 0)) for p in registered]
-                })
-                st.bar_chart(err_df.set_index("Port"), color="#ff4444", height=200)
+                if dist_df["Requests"].sum() > 0:
+                    fig = px.bar(dist_df, x="Agent", y="Requests",
+                                color_discrete_sequence=["#00d4ff"],
+                                template="plotly_dark")
+                    fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No requests yet!")
+            with a2:
+                st.markdown("#### 🎯 Strategy Usage")
+                if st.session_state.recent_requests:
+                    strat_counts = {}
+                    for req in st.session_state.recent_requests:
+                        s = req["Strategy"]
+                        strat_counts[s] = strat_counts.get(s, 0) + 1
+                    strat_df = pd.DataFrame({
+                        "Strategy": list(strat_counts.keys()),
+                        "Count": list(strat_counts.values())
+                    })
+                    fig = px.pie(strat_df, values="Count", names="Strategy",
+                                color_discrete_sequence=px.colors.sequential.Rainbow,
+                                template="plotly_dark")
+                    fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Send requests to see strategy distribution!")
 
             st.markdown("---")
-            st.markdown("#### 🔥 Load Heatmap (CPU & Memory)")
-            heat_data = []
-            for p in registered:
-                t = telemetry.get(str(p), {})
-                heat_data.append({"Node": f":{p}", "CPU %": t.get("cpu_percent", 0), "Memory %": t.get("memory_percent", 0), "Health Score": t.get("health_score", 0)})
-            st.dataframe(pd.DataFrame(heat_data), use_container_width=True, hide_index=True)
+
+            b1, b2 = st.columns(2)
+            with b1:
+                st.markdown("#### ⏱️ Latency per Agent")
+                lat_df = pd.DataFrame({
+                    "Agent": [f"Agent-{p}" for p in registered],
+                    "Latency (ms)": [telemetry.get(str(p), {}).get("latency_ms", 0) for p in registered]
+                })
+                fig = px.bar(lat_df, x="Agent", y="Latency (ms)",
+                            color_discrete_sequence=["#ffaa00"],
+                            template="plotly_dark")
+                fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
+                st.plotly_chart(fig, use_container_width=True)
+            with b2:
+                st.markdown("#### 🔥 Load Heatmap")
+                heat_data = []
+                for p in registered:
+                    t = telemetry.get(str(p), {})
+                    heat_data.append({
+                        "Agent": f"Agent-{p}",
+                        "CPU %": t.get("cpu_percent", 0),
+                        "Memory %": t.get("memory_percent", 0),
+                        "Health Score": t.get("health_score", 0)
+                    })
+                st.dataframe(pd.DataFrame(heat_data), use_container_width=True, hide_index=True)
 
         # ───────────────────────────────────────────────────────────
-        # TAB 3: TRACES & LOGS
+        # TAB 3: REQUEST LOGS & TRACES
         # ───────────────────────────────────────────────────────────
         with tab3:
             log_col, trace_col = st.columns([1, 2])
-
             with log_col:
-                st.markdown("#### 📋 Event Log")
+                st.markdown("#### 📋 Health Monitor Events")
                 if events:
-                    for e in reversed(events[-15:]):
+                    for e in reversed(events[-20:]):
                         ts = datetime.fromtimestamp(e["timestamp"]).strftime("%H:%M:%S")
                         lvl = e["level"]
-                        lcls = {"INFO":"log-info","WARN":"log-warn","CRITICAL":"log-critical","RECOVERY":"log-recovery"}.get(lvl,"log-info")
+                        lcls_map = {
+                            "INFO": "log-info",
+                            "WARN": "log-warn",
+                            "CRITICAL": "log-critical",
+                            "RECOVERY": "log-recovery"
+                        }
+                        lcls = lcls_map.get(lvl, "log-info")
                         st.markdown(f'<div class="log-entry {lcls}"><span style="color:#8b949e;">{ts}</span> [{lvl}] Port {e["port"]} — {e["message"]}</div>', unsafe_allow_html=True)
                 else:
-                    st.info("No events yet.")
-
+                    st.info("No events yet!")
             with trace_col:
-                st.markdown("#### 📝 Request Logging")
+                st.markdown("#### 📝 Request Logs")
                 if st.session_state.recent_requests:
                     log_df = pd.DataFrame(st.session_state.recent_requests)
-                    log_df.columns = ["Request ID", "Agent", "Routing Method", "Latency (ms)", "Time", "Reason"]
                     st.dataframe(log_df, use_container_width=True, hide_index=True)
                 else:
-                    st.info("Send requests to see request logging.")
+                    st.info("Send requests to see logs!")
 
         # ───────────────────────────────────────────────────────────
         # TAB 4: DEMO MODE
         # ───────────────────────────────────────────────────────────
         with tab4:
-            st.markdown("""<div class="hero-banner" style="text-align:center;">
+            st.markdown("""
+            <div class="hero-banner" style="text-align:center;">
                 <div class="hero-title">🎬 Hackathon Demo Mode</div>
-                <div class="hero-sub">One-click automated demonstration of AegisRoute's orchestration & self-healing capabilities</div></div>""", unsafe_allow_html=True)
+                <div class="hero-sub">One-click automated demonstration of AegisRoute's orchestration & self-healing capabilities</div>
+            </div>
+            """, unsafe_allow_html=True)
 
             st.markdown("")
-            dc1, dc2, dc3 = st.columns([1,2,1])
-            with dc2:
+
+            d1, d2, d3 = st.columns([1,3,1])
+            with d2:
                 if demo_active:
-                    st.warning("🔴 Demo is LIVE — watch the Command Center and Analytics tabs!")
-                    st.info("To stop the demo, use the 🎬 Demo Engine controls in the left sidebar.")
+                    st.warning("🔴 Demo is LIVE! Watch the Infrastructure Overview tab!")
+                    st.info("To stop the demo, use the controls in the left sidebar.")
                 else:
-                    st.success("Ready to launch demo.")
-                    st.info("Click **🚀 Start Demo** in the left sidebar to begin.")
+                    st.success("Ready to launch!")
+                    st.info("Click **🚀 Launch Demo** in the left sidebar to start the automated sequence.")
 
             st.markdown("---")
             st.markdown("#### 📋 Demo Sequence")
             st.markdown("""
-| Phase | Duration | What Happens |
-|-------|----------|--------------|
-| **1. Steady Traffic** | ~15s | Sends requests across all 6 strategies to build baseline metrics |
-| **2. Node Crash** | Instant | Randomly kills one agent node to simulate infrastructure failure |
-| **3. Pressure Test** | ~15s | Continues traffic — demonstrates automatic failover & rerouting |
-| **4. Self-Healing** | Instant | Restores the crashed node — watch it re-enter the healthy pool |
-| **5. Recovery Traffic** | ~10s | Final burst proves zero-downtime recovery with balanced distribution |
-""")
+            | Phase | Duration | What Happens |
+            |-------|----------|--------------|
+            | 1. Steady Traffic | ~15s | Generates traffic across all 6 routing strategies to build baseline metrics |
+            | 2. Simulate Failure | Instant | Randomly kills one agent node to demonstrate infrastructure failure |
+            | 3. Failover & Reroute | ~15s | Continues traffic to show automatic failover to healthy agents |
+            | 4. Self-Heal | Instant | Restores the failed agent — watch it rejoin the healthy pool! |
+            | 5. Recovery Traffic | ~10s | Final traffic burst to prove zero-downtime recovery & balanced distribution |
+            """)
             st.markdown("""
-> **💡 Tip for Judges:** Open the **Command Center** tab in another browser window while the demo runs.
-> Watch the node cards update in real-time: health scores drop, badges flash red, traffic reroutes,
-> and then the recovered node glows green again — all automatically.
-""")
+            > 💡 **Pro Tip for Judges:** Open the **Infrastructure Overview** tab in another browser window while the demo runs.
+            > Watch the agent cards update in real-time!
+            """)
 
     time.sleep(1.5)
