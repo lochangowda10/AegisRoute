@@ -20,7 +20,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 # ---------------------------------------------------------------------------
 # Registry & State
 # ---------------------------------------------------------------------------
-REGISTERED_PORTS = [8001, 8002, 8003]
+REGISTERED_PORTS = [8001, 8002, 8003]  # Keep all 3 agents
 daemon = HealthCheckerDaemon(REGISTERED_PORTS)
 
 request_counts: Dict[int, int] = {p: 0 for p in REGISTERED_PORTS}
@@ -31,10 +31,10 @@ round_robin_index = 0
 total_requests = 0
 start_time = time.time()
 
-# Request tracing (rolling buffer)
-traces: deque = deque(maxlen=100)
+# Request tracing (rolling buffer, reduced size for memory)
+traces: deque = deque(maxlen=30)
 # RPS tracking
-rps_history: deque = deque(maxlen=60)  # last 60 seconds
+rps_history: deque = deque(maxlen=30)  # last 30 seconds
 _rps_counter = 0
 _last_rps_time = time.time()
 

@@ -1,9 +1,9 @@
 import subprocess, time, sys
 
 def start():
-    print("🚀 Starting AegisRoute Cloud System...")
+    print("🚀 Starting AegisRoute Cloud System (Optimized for 512MB RAM)...")
     procs = []
-    for port in [8001, 8002, 8003]:
+    for port in [8001, 8002, 8003]:  # Keep all 3 agents
         print(f"  Starting agent on port {port}...")
         procs.append(subprocess.Popen([sys.executable, "agent_instance.py", "--port", str(port)]))
     time.sleep(2)

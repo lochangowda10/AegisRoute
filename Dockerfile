@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-alpine  # Use Alpine for smaller size
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY health_checker.py .
 EXPOSE 8000 8001 8002 8003
 
 # Create a startup script to run router and agents
-RUN echo '#!/bin/bash\n\
+RUN echo '#!/bin/sh\n\
 python agent_instance.py --port 8001 &\n\
 python agent_instance.py --port 8002 &\n\
 python agent_instance.py --port 8003 &\n\
