@@ -402,7 +402,7 @@ while True:
                              color_discrete_sequence=["#00d4ff"],
                              template="plotly_dark")
                 fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="rps_chart")
             else:
                 st.info("Waiting for RPS data...")
 
@@ -420,7 +420,7 @@ while True:
                                 color_discrete_sequence=["#00d4ff"],
                                 template="plotly_dark")
                     fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key="distribution_chart")
                 else:
                     st.info("No requests yet!")
             with a2:
@@ -438,7 +438,7 @@ while True:
                                 color_discrete_sequence=px.colors.sequential.Rainbow,
                                 template="plotly_dark")
                     fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key="strategy_pie")
                 else:
                     st.info("Send requests to see strategy distribution!")
 
@@ -455,7 +455,7 @@ while True:
                             color_discrete_sequence=["#ffaa00"],
                             template="plotly_dark")
                 fig.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="latency_chart")
             with b2:
                 st.markdown("#### 🔥 Load Heatmap")
                 heat_data = []
